@@ -1,0 +1,157 @@
+body {
+  margin: 0;
+}
+
+h1 {
+  font-size: clamp(1.2rem, 2.5vw, 1.4rem);
+  font-weight: 900;
+  margin: 0;
+  margin-bottom: 1vh;
+}
+
+h3 {
+  margin: 0;
+}
+
+p {
+  margin: 0;
+  font-size: clamp(0.7rem, 2.5vw, 1rem);
+  font-weight: 400;
+}
+
+a:link, a:visited, a:hover, a:active { 
+  color: white;
+}
+
+@font-face {
+  font-family: 'runescape';
+  src: url('./assets/RuneScape.woff') format('woff');
+}
+
+.App {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  place-items: center;
+  background-color: white;
+  padding: 0;
+  font-family: 'runescape';
+  font-size: clamp(0.9rem, 2.5vw, 1.2rem);
+  font-weight: 900;
+}
+
+.app-nav-bar {
+  width: 98%;
+  height: 5vh;
+  color: beige;
+  display: flex;
+  flex-direction: row-reverse;
+  place-items: center;
+  justify-content: space-between;
+}
+
+.body {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2vh;
+  place-items: center;
+  min-width: 300px;
+  width: 100%;
+  min-height: 100vh;
+  background: rgb(36,0,6);
+  background: linear-gradient(180deg, rgba(36,0,6,1) 0%, rgb(85, 2, 20) 100%);
+}
+
+.box {
+  min-width: 300px;
+  width: 90%;
+  max-width: 600px;
+  border: 3px solid black;
+  border-radius: 10px;
+  padding: 1vh;
+  background-color: azure;
+  display: flex;
+  flex-direction: column;
+  place-items: center;
+}
+
+.edit-box {
+  min-width: 300px;
+  width: 90%;
+  max-width: 600px;
+  border: 3px solid black;
+  border-radius: 10px;
+  padding: 1vh;
+  background-color: azure;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+}
+
+
+.all-skills-box {
+  min-width: 100px;
+  width: 100%;
+  max-width: 500px;
+  border-radius: 10px;
+  background-color: azure;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  column-gap: 0px;
+}
+
+.skill-box {
+  padding-left: 0ch;
+  padding-right: 0ch;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  align-items: center;
+  border: 1px solid black;
+}
+
+.footnote {
+  margin-top: 5px;
+  margin-bottom: 0;
+}
+
+.login-form {
+  min-width: 300px;
+  width: 90%;
+  max-width: 600px;
+  color: azure;
+  display: flex;
+  flex-direction: column;
+  place-items: center;
+}
+
+.login-button {
+  width: 20%;
+  font-size: medium;
+  margin-top: 1vh;
+  color: black;
+  background-color: azure;
+  border: 1px solid black;
+  border-radius: 3px;
+}
+
+.action-icons {
+  display: flex;
+  gap: 1vh;
+}
+
+.add-user-group {
+  color: azure;
+  min-width: 300px;
+  width: 92%;
+  max-width: 600px;
+  align-items: left;
+  background-color: green;
+}
+
+.add-new-user-input {
+  width: 60%;
+  font-size: clamp(1.1rem, 2.5vw, 1.4rem);
+}

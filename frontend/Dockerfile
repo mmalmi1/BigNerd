@@ -20,5 +20,6 @@ COPY localhost.crt ./
 COPY --from=build dist /var/www/B1gNerd
 
 # Expose ports
+EXPOSE 8754
 EXPOSE 443
 EXPOSE 80

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link} from "react-router-dom"
-import attack from './assets/RS_icons/skill_icon_attack1.gif'; 
+import { Link } from "react-router-dom"
+import attack from './assets/RS_icons/skill_icon_attack1.gif';
 import hitpoints from './assets/RS_icons/skill_icon_hitpoints1.gif';
 import mining from './assets/RS_icons/skill_icon_mining1.gif';
 import strength from './assets/RS_icons/skill_icon_strength1.gif';
@@ -31,23 +31,23 @@ function Home() {
   const [loading, setLoading] = useState(true);
   const [month, setMonth] = useState("");
   const icons = [attack, hitpoints, mining, strength, agility, smithing, defence, herblore,
-                fishing, ranged, thieving, cooking, prayer, crafting, firemaking, magic,
-                fletching, woodcutting, runecraft, slayer, farming, construction, hunter, null]
+    fishing, ranged, thieving, cooking, prayer, crafting, firemaking, magic,
+    fletching, woodcutting, runecraft, slayer, farming, construction, hunter, null]
   const skillKeys = ["attack", "hitpoints", "mining", "strength", "agility", "smithing", "defence", "herblore",
     "fishing", "ranged", "thieving", "cooking", "prayer", "crafting", "firemaking", "magic",
     "fletching", "woodcutting", "runecrafting", "slayer", "farming", "construction", "hunter", "overall"]
 
   useEffect(() => {
     fetch("/api/users")
-    .then(function(response) {
+      .then(function (response) {
         return response.json();
-      }).then(function(data) {
+      }).then(function (data) {
         setUsers(data);
         if (data.length != 0) {
           setMonth(getMonthName(data[0][1]["startMonth"]))
         } else {
           const date = new Date();
-          setMonth(date.toLocaleString("en-GB", {month: 'long',}));
+          setMonth(date.toLocaleString("en-GB", { month: 'long', }));
         }
         setLoading(false);
       });
@@ -57,7 +57,7 @@ function Home() {
   function getMonthName(monthNumber) {
     const date = new Date();
     date.setMonth(monthNumber - 1);
-  
+
     return date.toLocaleString("en-GB", {
       month: 'long',
     });
@@ -71,23 +71,24 @@ function Home() {
             <Link to="/login">
               <LoginIcon></LoginIcon>
             </Link>
-            {loading ? 
-            <div></div> :
-            <h1>{month}'s Big Nerd</h1>
+            {loading ?
+              <div></div> :
+              <h1>{month}'s Big Nerd</h1>
             }
             <div style={{ width: "24px" }}></div>
           </div>
-          {loading ? 
-            <div></div> :            
-            users.map((user, userRank) => (
-              <div key={user[2]["id"]} className='box'>
-                {<h1>{userRank + 1}. {user[0]}</h1>}
-                <div className='all-skills-box'>
-                  {skillKeys.map((skill, i) =>
-                    <div className='skill-box' key={skill}>
-                      <div style={{ width: "5ch" }}>
-                        <img src={icons[i]}></img>
-                        {`${user[2][`${skill}Lvl`]}`}
+          {loading ?
+            <div></div> :
+            <div className='content'>
+              {users.map((user, userRank) => (
+                <div key={user[2]["id"]} className='box'>
+                  {<h1>{userRank + 1}. {user[0]}</h1>}
+                  <div className='all-skills-box'>
+                    {skillKeys.map((skill, i) =>
+                      <div className='skill-box' key={skill}>
+                        <div style={{ width: "5ch" }}>
+                          <img src={icons[i]}></img>
+                          {`${user[2][`${skill}Lvl`]}`}
                         </div>
                         <div style={{ width: "3ch", textAlign: 'right' }}>
                           {`+${user[2][`${skill}Lvl`] - user[1][`${skill}Lvl`]}`}
@@ -103,14 +104,14 @@ function Home() {
                     <div></div>
                     <p className='footnote'>Tracked since {user[1]["startDay"]}.{user[1]["startMonth"]}.{user[1]["startYear"]}</p>
                   </div>
-
                 </div>
-              ))
-            }
-          </div>
+              ))}
+            </div>
+          }
         </div>
-      </>
-    )
+      </div >
+    </>
+  )
 }
 
 export default Home

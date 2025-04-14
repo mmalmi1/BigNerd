@@ -64,6 +64,16 @@ a:link, a:visited, a:hover, a:active {
   background: linear-gradient(180deg, rgba(36,0,6,1) 0%, rgb(85, 2, 20) 100%);
 }
 
+.content {
+  width: 90%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 5%;
+  gap: 2vh;
+}
+
 .box {
   min-width: 300px;
   width: 90%;

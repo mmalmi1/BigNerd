@@ -1,11 +1,9 @@
 const express = require("express")
-const app = express()
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 const bcrypt = require("bcrypt")
-var cron = require('node-cron');
-var sqlite3 = require('sqlite3').verbose()
-const DBSOURCE = "./sqlite3/sqlite3.db"
+const cron = require('node-cron');
 const jwt = require("jsonwebtoken");
+const dbOperations = require("./src/dbOperations.js");
 
 require('dotenv').config()
 console.log(`${process.env.JWTPRIVATEKEY}`);
@@ -14,16 +12,10 @@ console.log(`${process.env.JWTPRIVATEKEY}`);
 // Import middlewares
 const auth = require("./middleware/auth");
 const { admin } = require("./middleware/roles");
-    
-let db = new sqlite3.Database(DBSOURCE, (err) => {
-    if (err) {
-      // Cannot open database
-      console.error(err.message)
-      throw err
-    }else{
-        console.log('Connected to the SQLite database.')
-    }
-});
+
+const app = express()
+const db = require("./src/dbConn.js").db;
+
 
 app.get("/users/add", [auth, admin], (req, res) => {
     var fetchUser = req.query.username;
@@ -369,136 +361,17 @@ app.get("/users/update", [auth, admin], (req, res) => {
         res.status(404).send("Undefined user or status");
         return;
     }
-    var pre_query = new Promise((resolve, reject) => {
-        db.all(`SELECT * FROM users;`, [], (err, rows) => {
-            if (err) {
-                console.log("Get users error");
-                return reject(new Error("Username not found"));
-            };
-            if (!rows.some(a => a.username === fetchUser)) {
-                console.log("Username not found");
-                return reject(new Error("Username not found"));
-            };
-            return resolve(fetchUser)
-        });
-    })
-    .then(success => {
-        var query = new Promise((resolve, reject) => {
-            db.all(`UPDATE users SET active = ? WHERE username = ?;`,
-            [active, fetchUser], (err, rows) => {
-                if (err) {
-                    console.log("User delete error");
-                    return reject(err);
-                };
-                return resolve(fetchUser)
-            });
-        })
-    })
-    .then(success => res.status(200).send('200'))
-    .catch(err => res.status(404).send(err.message));
+    dbOperations.disableUser(active, fetchUser, res);
 });
 
-function sortFunction(a, b) {
-    var x = a[2]["overallExp"] - a[1]["overallExp"]; 
-    var y = b[2]["overallExp"] - b[1]["overallExp"]; 
-    if (x === y) {
-        return 0;
-    }
-    else {
-        return (x > y) ? -1 : 1;
-    }
-}
-
+// Get all users
 app.get("/allusers", [auth, admin], (req, res) => {
-    var date = new Date();
-    var month = date.getMonth() + 1;
-    var year = date.getFullYear();
-    var params = [];
-    var start = null;
-
-    var query = new Promise((resolve, reject) => {
-        db.all(`SELECT * FROM users;`, [], (err, rows) => {
-            if (err) {
-                return reject(err);
-            }
-            return resolve(rows);
-        });
-    })
-    .then(result=> {
-        console.log("All users query success");
-        res.status(200).send(JSON.stringify(result));
-    })
-    .catch(err => res.status(404).send(err.message));
+    dbOperations.getAllUsers(res);
 })
 
+// Get main feed
 app.get("/users", (req, res) => {
-    var date = new Date();
-    var month = date.getMonth() + 1;
-    var year = date.getFullYear();
-    var params = [];
-    var start = null;
-
-    var query = new Promise((resolve, reject) => {
-        db.all(`SELECT * FROM users WHERE active = 1;`, [], (err, rows) => {
-            if (err) {
-                return reject(err);
-            }
-            return resolve(rows);
-        });
-    })
-    .then(success => {
-        for (let i = 0; i < success.length; i++) {
-            var row = success[i];
-            params.push(row.username);       
-        };
-        params.push(year);
-        params.push(month);
-
-        var startData = new Promise((resolve, reject) => {
-            db.all(`SELECT * FROM startdata WHERE (
-                username IN (${ success.map(() => "?").join(",") }) AND
-                startYear = ? AND
-                startMonth = ?
-            );`,
-            params, (err, rows) => {
-                if (err) {
-                    console.log("Get startdata error");
-                    return reject(err);
-                };
-                return resolve(rows);
-            }); 
-        })
-        return startData;
-    })
-    .then(startData => {
-        var endData = new Promise((resolve, reject) => {
-            db.all(`SELECT * FROM enddata WHERE (
-                username IN (${ startData.map(() => "?").join(",") }) AND
-                endYear = ? AND
-                endMonth = ?
-            );`,
-            params, (err, rows) => {
-                if (err) {
-                    console.log("Get enddata error");
-                    return reject(err);
-                };
-                return resolve(rows);
-            }); 
-        })
-        start = startData;
-        return endData;
-    })
-    .then(result=> {
-        console.log("Users query success");
-        resDict = [];
-        for (let i = 0; i < result.length; i++) {
-            var username = result[i]["username"];
-            resDict.push([username, start[i], result[i]]);
-        }
-        resDict.sort(sortFunction);
-        res.status(200).send(JSON.stringify(resDict));
-    })
-    .catch(err => res.status(404).send(err.message));
+    dbOperations.getMainFeed(res);
 })
 
 const updateEndData = async(users) => {
@@ -655,6 +528,8 @@ const insertStartMonthData = async(users) => {
         await fetch(`https://secure.runescape.com/m=hiscore_oldschool/index_lite.ws?player=${username}`, {method: 'GET', headers: {}})
         .then(res => {
             if (!res.ok) {
+                console.log("Username not found in jagex API, disabling user", primaryKey);
+                dbOperations.disableUser(0, username, res);
                 throw new Error("Username not found in jagex API");
             }
             return res.text()
@@ -899,15 +774,17 @@ cron.schedule('0 0 1 * *', () => {
 app.use(express.json());
 
 app.post("/login", (req, res) => {
-    console.log("login");
     var username = req.body.username;
     var password = req.body.password;
+    console.log("login", username, password);
 
     var query = new Promise((resolve, reject) => {
         db.all(`SELECT * FROM admins WHERE username = ?;`, [username], (err, rows) => {
             if (err) {
+                console.log(err);
                 return reject(err);
             }
+            console.log(rows);
             return resolve(rows);
         });
     })

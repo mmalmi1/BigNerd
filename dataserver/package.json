@@ -4,7 +4,7 @@
   "description": "",
   "main": "dataserver.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test test/migrate.test.js test/dbConn.test.js",
     "start": "node dataserver",
     "dev": "nodemon dataserver"
   },

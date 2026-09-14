@@ -83,20 +83,20 @@ test('001_initial_schema.sql creates exactly the 4 live tables, with columns mat
 })
 
 test('runMigrations is idempotent: exactly one ledger row after the first call, none added by the second', async () => {
+    const realMigrationFiles = fs.readdirSync(REAL_MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')).sort()
+
     const scratchDir = mkScratchDir()
     const dbPath = path.join(scratchDir, 'scratch.db')
     const db = await openDb(dbPath)
     try {
         await runMigrations(db)
         let rows = await allAsync(db, 'SELECT filename FROM _migrations')
-        assert.strictEqual(rows.length, 1)
-        assert.strictEqual(rows[0].filename, MIGRATION_FILE)
+        assert.deepStrictEqual(rows.map((r) => r.filename), realMigrationFiles)
 
         await assert.doesNotReject(() => runMigrations(db))
 
         rows = await allAsync(db, 'SELECT filename FROM _migrations')
-        assert.strictEqual(rows.length, 1, 'no additional rows should appear after a second call')
-        assert.strictEqual(rows[0].filename, MIGRATION_FILE)
+        assert.deepStrictEqual(rows.map((r) => r.filename), realMigrationFiles, 'no additional rows should appear after a second call')
     } finally {
         await closeDb(db)
         rmScratchDir(scratchDir)
@@ -104,6 +104,8 @@ test('runMigrations is idempotent: exactly one ledger row after the first call, 
 })
 
 test('migrations are applied in sorted filename order, strictly one at a time', async () => {
+    const realMigrationFiles = fs.readdirSync(REAL_MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')).sort()
+
     const testFiles = ['002_test_seq_a.sql', '003_test_seq_b.sql']
     fs.writeFileSync(
         path.join(REAL_MIGRATIONS_DIR, testFiles[0]),
@@ -148,7 +150,7 @@ test('migrations are applied in sorted filename order, strictly one at a time', 
         const ledger = await allAsync(db, 'SELECT filename FROM _migrations ORDER BY id')
         assert.deepStrictEqual(
             ledger.map((r) => r.filename),
-            [MIGRATION_FILE, ...testFiles]
+            [...realMigrationFiles, ...testFiles]
         )
     } finally {
         await closeDb(db)
@@ -181,6 +183,8 @@ test('a malformed migration file makes runMigrations reject with the underlying 
 })
 
 test('runMigrations backfills the ledger onto a pre-existing hand-built schema without altering it', async () => {
+    const realMigrationFiles = fs.readdirSync(REAL_MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')).sort()
+
     const scratchDir = mkScratchDir()
     const dbPath = path.join(scratchDir, 'scratch.db')
     const db = await openDb(dbPath)
@@ -198,27 +202,122 @@ test('runMigrations backfills the ledger onto a pre-existing hand-built schema w
         await runMigrations(db)
 
         const migrationRows = await allAsync(db, 'SELECT filename FROM _migrations')
-        assert.strictEqual(migrationRows.length, 1)
-        assert.strictEqual(migrationRows[0].filename, MIGRATION_FILE)
+        assert.deepStrictEqual(migrationRows.map((r) => r.filename), realMigrationFiles)
 
         const tablesAfter = await allAsync(db, "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+        const tableNamesAfter = tablesAfter.map((r) => r.name)
+        // 002_snapshotdata.sql really ran here (this db had no _migrations
+        // ledger yet), collapsing startdata/enddata into snapshotdata --
         // sqlite_sequence is SQLite's own internal bookkeeping table, created
-        // automatically as a side effect of _migrations' AUTOINCREMENT column
-        // -- expected, not a defect.
+        // automatically as a side effect of _migrations' AUTOINCREMENT column.
+        assert.ok(!tableNamesAfter.includes('startdata'), 'startdata must be dropped by 002_snapshotdata.sql')
+        assert.ok(!tableNamesAfter.includes('enddata'), 'enddata must be dropped by 002_snapshotdata.sql')
         assert.deepStrictEqual(
-            tablesAfter.map((r) => r.name).sort(),
-            [...EXPECTED_TABLES, '_migrations', 'sqlite_sequence'].sort(),
-            'backfilling must not drop, rename or duplicate any pre-existing table'
+            tableNamesAfter.sort(),
+            ['_migrations', 'admins', 'snapshotdata', 'sqlite_sequence', 'users'].sort(),
+            'backfilling must not drop, rename or duplicate any pre-existing table beyond the expected startdata/enddata collapse'
         )
-
-        for (const t of EXPECTED_TABLES) {
-            const colsBefore = await allAsync(db, `PRAGMA table_info(${t})`)
-            // re-fetch is redundant with tablesAfter check but confirms columns unchanged too
-            assert.ok(colsBefore.length > 0)
-        }
 
         const userRows = await allAsync(db, 'SELECT username, active FROM users')
         assert.deepStrictEqual(userRows, [{ username: 'seed-user', active: 1 }], 'pre-existing data must survive backfill untouched')
+    } finally {
+        await closeDb(db)
+        rmScratchDir(scratchDir)
+    }
+})
+
+// The 48 skill Lvl/Exp columns, in the order both startdata/enddata (001)
+// and snapshotdata (002) declare them -- kept as a literal here (rather than
+// imported from src/dbOperations.js) so this test exercises the migration
+// SQL's own column order, not whatever the application code happens to
+// agree with it about.
+const SNAPSHOTDATA_SKILL_COLUMNS = [
+    'overallLvl', 'overallExp',
+    'attackLvl', 'attackExp',
+    'defenceLvl', 'defenceExp',
+    'strengthLvl', 'strengthExp',
+    'hitpointsLvl', 'hitpointsExp',
+    'rangedLvl', 'rangedExp',
+    'prayerLvl', 'prayerExp',
+    'magicLvl', 'magicExp',
+    'cookingLvl', 'cookingExp',
+    'woodcuttingLvl', 'woodcuttingExp',
+    'fletchingLvl', 'fletchingExp',
+    'fishingLvl', 'fishingExp',
+    'firemakingLvl', 'firemakingExp',
+    'craftingLvl', 'craftingExp',
+    'smithingLvl', 'smithingExp',
+    'miningLvl', 'miningExp',
+    'herbloreLvl', 'herbloreExp',
+    'agilityLvl', 'agilityExp',
+    'thievingLvl', 'thievingExp',
+    'slayerLvl', 'slayerExp',
+    'farmingLvl', 'farmingExp',
+    'runecraftingLvl', 'runecraftingExp',
+    'hunterLvl', 'hunterExp',
+    'constructionLvl', 'constructionExp',
+]
+
+test('002_snapshotdata.sql collapses startdata/enddata into one capturedAt-ordered snapshotdata table', async () => {
+    const scratchDir = mkScratchDir()
+    const dbPath = path.join(scratchDir, 'scratch.db')
+    const db = await openDb(dbPath)
+    try {
+        const sql001 = fs.readFileSync(path.join(REAL_MIGRATIONS_DIR, MIGRATION_FILE), 'utf8')
+        await execAsync(db, sql001)
+
+        // One startdata row and one enddata row for the same user, on the
+        // same calendar day -- the exact scenario the migration's comment
+        // says its 00:00:00/23:59:59 split is meant to disambiguate.
+        const startValues = SNAPSHOTDATA_SKILL_COLUMNS.map((_, i) => i + 1)
+        startValues[0] = 100 // overallLvl marker for the startdata-derived row
+        const endValues = SNAPSHOTDATA_SKILL_COLUMNS.map((_, i) => i + 1000)
+        endValues[0] = 200 // overallLvl marker for the enddata-derived row
+
+        await runAsync(
+            db,
+            `INSERT INTO startdata (id, username, startDay, startMonth, startYear, ${SNAPSHOTDATA_SKILL_COLUMNS.join(',')}) VALUES (?, ?, ?, ?, ?, ${SNAPSHOTDATA_SKILL_COLUMNS.map(() => '?').join(',')})`,
+            ['s1', 'migtestuser', 15, 6, 2024, ...startValues]
+        )
+        await runAsync(
+            db,
+            `INSERT INTO enddata (id, username, endDay, endMonth, endYear, ${SNAPSHOTDATA_SKILL_COLUMNS.join(',')}) VALUES (?, ?, ?, ?, ?, ${SNAPSHOTDATA_SKILL_COLUMNS.map(() => '?').join(',')})`,
+            ['e1', 'migtestuser', 15, 6, 2024, ...endValues]
+        )
+
+        const sql002 = fs.readFileSync(path.join(REAL_MIGRATIONS_DIR, '002_snapshotdata.sql'), 'utf8')
+        await execAsync(db, sql002)
+
+        const cols = await allAsync(db, 'PRAGMA table_info(snapshotdata)')
+        assert.deepStrictEqual(
+            cols.map((c) => c.name),
+            ['id', 'username', 'capturedAt', ...SNAPSHOTDATA_SKILL_COLUMNS],
+            'snapshotdata columns must match the migration file exactly, in order'
+        )
+
+        const rows = await allAsync(db, 'SELECT * FROM snapshotdata ORDER BY capturedAt ASC')
+        assert.strictEqual(rows.length, 2, 'both the startdata and enddata row must have migrated')
+
+        const [startRow, endRow] = rows
+        assert.strictEqual(startRow.overallLvl, 100, 'the earlier row must be the ex-startdata row')
+        assert.strictEqual(endRow.overallLvl, 200, 'the later row must be the ex-enddata row')
+        for (let i = 0; i < SNAPSHOTDATA_SKILL_COLUMNS.length; i++) {
+            const col = SNAPSHOTDATA_SKILL_COLUMNS[i]
+            assert.strictEqual(startRow[col], startValues[i], `startRow.${col} must match its startdata source`)
+            assert.strictEqual(endRow[col], endValues[i], `endRow.${col} must match its enddata source`)
+        }
+        assert.ok(
+            startRow.capturedAt < endRow.capturedAt,
+            'the ex-startdata row must sort strictly before the ex-enddata row despite sharing a calendar day'
+        )
+        assert.strictEqual(startRow.capturedAt, '2024-06-15T00:00:00.000Z')
+        assert.strictEqual(endRow.capturedAt, '2024-06-15T23:59:59.999Z')
+
+        const tableNames = (
+            await allAsync(db, "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+        ).map((r) => r.name)
+        assert.ok(!tableNames.includes('startdata'), 'startdata must be dropped')
+        assert.ok(!tableNames.includes('enddata'), 'enddata must be dropped')
     } finally {
         await closeDb(db)
         rmScratchDir(scratchDir)

@@ -17,7 +17,11 @@ const path = require('path')
 const sqlite3 = require('sqlite3').verbose()
 
 const DBCONN_PATH = process.argv[2]
-const EXPECTED_TABLES = ['_migrations', 'admins', 'enddata', 'startdata', 'users']
+// This list only needs to be a subset the polling loop below waits to see
+// (via `.every`, not an exact-match) -- matching this fixture's existing
+// convention of omitting sqlite_sequence, SQLite's own internal bookkeeping
+// table, which the exact-match assertion in dbConn.test.js checks instead.
+const EXPECTED_TABLES = ['_migrations', 'admins', 'snapshotdata', 'users']
 
 require(DBCONN_PATH)
 

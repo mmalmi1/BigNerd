@@ -1,34 +1,29 @@
 const db = require("./dbConn.js").db;
 
 function disableUser(active, fetchUser, res) {
-    var pre_query = new Promise((resolve, reject) => {
-        db.get(`SELECT * FROM users WHERE username = ?`, [fetchUser], (err, row) => {
-            if (row == undefined || err) {
-                console.log("User not found");
-                return reject(new Error("Username not found"));
-            };
-            return resolve(row);
-        })
-    })
-    .then(result=> {
-        var query = new Promise((resolve, reject) => {
-            db.all(`UPDATE users SET active = ? WHERE username = ?;`, [active, fetchUser], (err, rows) => {
-                if (err) {
-                    console.log("User update error");
-                    return reject(err);
-                };
-                return resolve(fetchUser)
-            });
-        })
-    })
-    .then(result=> {
-        console.log("User update success");
-        res.status(200).send('200');
-    })
-    .catch(err => {
-        console.log("User update failure");
-        res.status(403).send(err.message);
-        return;
+    const sendResponse = (status, payload) => {
+        if (res && typeof res.status === 'function') {
+            res.status(status).send(payload);
+        }
+    };
+
+    db.get(`SELECT * FROM users WHERE username = ?`, [fetchUser], (err, row) => {
+        if (err || row == undefined) {
+            console.log("User not found");
+            sendResponse(403, "Username not found");
+            return;
+        }
+
+        db.run(`UPDATE users SET active = ? WHERE username = ?;`, [active, fetchUser], (err) => {
+            if (err) {
+                console.log("User update error");
+                sendResponse(403, err.message);
+                return;
+            }
+
+            console.log("User update success");
+            sendResponse(200, '200');
+        });
     });
 }
 exports.disableUser = disableUser;
@@ -62,7 +57,7 @@ function getMainFeed(res) {
     .then(success => {
         for (let i = 0; i < success.length; i++) {
             var row = success[i];
-            params.push(row.username);       
+            params.push(row.username);
         };
         params.push(year);
         params.push(month);
@@ -75,11 +70,11 @@ function getMainFeed(res) {
             );`,
             params, (err, rows) => {
                 if (err) {
-                    console.log("Get startdata error");
+                    console.log("Get startdata error\n");
                     return reject(err);
                 };
                 return resolve(rows);
-            }); 
+            });
         })
         return startData;
     })
@@ -93,7 +88,7 @@ function getMainFeed(res) {
             );`,
             params, (err, rows) => {
                 if (err) {
-                    console.log("Get enddata error", err);
+                    console.log("Get enddata error\n", err);
                     return reject(err);
                 };
                 return resolve(rows);

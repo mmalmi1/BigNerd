@@ -529,7 +529,7 @@ const insertStartMonthData = async(users) => {
         .then(res => {
             if (!res.ok) {
                 console.log("Username not found in jagex API, disabling user", primaryKey);
-                dbOperations.disableUser(0, username, res);
+                dbOperations.disableUser(0, username);
                 throw new Error("Username not found in jagex API");
             }
             return res.text()

@@ -1,7 +1,8 @@
 .env
 dataserver/sqlite3/
 */node_modules/
-*/package-lock.json
+dataserver/package-lock.json
+frontend/package-lock.json
 .claude
 CLAUDE.MD
 SPECWEAVER.MD

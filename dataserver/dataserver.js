@@ -21,11 +21,6 @@ app.get("/users/add", [auth, admin], (req, res) => {
     var fetchUser = req.query.username;
     var stats = null;
     var infoArr = [];
-    var date = new Date();
-    var day = date.getDate();
-    var month = date.getMonth() + 1;
-    var year = date.getFullYear();
-    var primaryKey = [fetchUser, day, month, year].join("_");
 
     if (fetchUser === undefined) {
         res.status(404).send("Undefined user");
@@ -69,7 +64,7 @@ app.get("/users/add", [auth, admin], (req, res) => {
             return resolved;
         })
         .then(body => {
-            console.log("Inserting data to startdata table");
+            console.log("Recording snapshot for", fetchUser);
             var rows = stats.split("\n");
 
             for (let i = 0; i < 25; i++) {
@@ -77,210 +72,7 @@ app.get("/users/add", [auth, admin], (req, res) => {
                 infoArr.push([row[1], row[2]]);
             }
 
-            var insert_startdata = new Promise((resolve, reject) => {
-                db.all(`INSERT INTO startdata (
-                    id,
-                    username,
-                    startDay,
-                    startMonth,
-                    startYear,
-                    overallLvl,
-                    overallExp,
-                    attackLvl,
-                    attackExp,
-                    defenceLvl,
-                    defenceExp,
-                    strengthLvl,
-                    strengthExp,
-                    hitpointsLvl,
-                    hitpointsExp,
-                    rangedLvl,
-                    rangedExp,
-                    prayerLvl,
-                    prayerExp,
-                    magicLvl,
-                    magicExp,
-                    cookingLvl,
-                    cookingExp,
-                    woodcuttingLvl,
-                    woodcuttingExp,
-                    fletchingLvl,
-                    fletchingExp,
-                    fishingLvl,
-                    fishingExp,
-                    firemakingLvl,
-                    firemakingExp,
-                    craftingLvl,
-                    craftingExp,
-                    smithingLvl,
-                    smithingExp,
-                    miningLvl,
-                    miningExp,
-                    herbloreLvl,
-                    herbloreExp,
-                    agilityLvl,
-                    agilityExp,
-                    thievingLvl,
-                    thievingExp,
-                    slayerLvl,
-                    slayerExp,
-                    farmingLvl,
-                    farmingExp,
-                    runecraftingLvl,
-                    runecraftingExp,
-                    hunterLvl,
-                    hunterExp,
-                    constructionLvl,
-                    constructionExp
-                    ) VALUES (
-                    ?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?
-                    );`,
-                [primaryKey,
-                fetchUser,
-                day,
-                month,
-                year,
-                infoArr[0][0], infoArr[0][1],
-                infoArr[1][0], infoArr[1][1],
-                infoArr[2][0], infoArr[2][1],
-                infoArr[3][0], infoArr[3][1],
-                infoArr[4][0], infoArr[4][1],
-                infoArr[5][0], infoArr[5][1],
-                infoArr[6][0], infoArr[6][1],
-                infoArr[7][0], infoArr[7][1],
-                infoArr[8][0], infoArr[8][1],
-                infoArr[9][0], infoArr[9][1],
-                infoArr[10][0], infoArr[10][1],
-                infoArr[11][0], infoArr[11][1],
-                infoArr[12][0], infoArr[12][1],
-                infoArr[13][0], infoArr[13][1],
-                infoArr[14][0], infoArr[14][1],
-                infoArr[15][0], infoArr[15][1],
-                infoArr[16][0], infoArr[16][1],
-                infoArr[17][0], infoArr[17][1],
-                infoArr[18][0], infoArr[18][1],
-                infoArr[19][0], infoArr[19][1],
-                infoArr[20][0], infoArr[20][1],
-                infoArr[21][0], infoArr[21][1],
-                infoArr[22][0], infoArr[22][1],
-                infoArr[23][0], infoArr[23][1],
-                ], (err, rows) => {
-                    if (err) {
-                        return reject(err);
-                    }
-                    console.log("Insert start data success");
-                    return resolve(rows);
-                })
-            })
-        })
-        .then(body => {
-            console.log("Inserting data to enddata table");
-
-            var insert_enddata = new Promise((resolve, reject) => {
-                db.all(`INSERT INTO enddata (
-                    id,
-                    username,
-                    endDay,
-                    endMonth,
-                    endYear,
-                    overallLvl,
-                    overallExp,
-                    attackLvl,
-                    attackExp,
-                    defenceLvl,
-                    defenceExp,
-                    strengthLvl,
-                    strengthExp,
-                    hitpointsLvl,
-                    hitpointsExp,
-                    rangedLvl,
-                    rangedExp,
-                    prayerLvl,
-                    prayerExp,
-                    magicLvl,
-                    magicExp,
-                    cookingLvl,
-                    cookingExp,
-                    woodcuttingLvl,
-                    woodcuttingExp,
-                    fletchingLvl,
-                    fletchingExp,
-                    fishingLvl,
-                    fishingExp,
-                    firemakingLvl,
-                    firemakingExp,
-                    craftingLvl,
-                    craftingExp,
-                    smithingLvl,
-                    smithingExp,
-                    miningLvl,
-                    miningExp,
-                    herbloreLvl,
-                    herbloreExp,
-                    agilityLvl,
-                    agilityExp,
-                    thievingLvl,
-                    thievingExp,
-                    slayerLvl,
-                    slayerExp,
-                    farmingLvl,
-                    farmingExp,
-                    runecraftingLvl,
-                    runecraftingExp,
-                    hunterLvl,
-                    hunterExp,
-                    constructionLvl,
-                    constructionExp
-                    ) VALUES (
-                    ?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?
-                    );`,
-                [primaryKey,
-                fetchUser,
-                day,
-                month,
-                year,
-                infoArr[0][0], infoArr[0][1],
-                infoArr[1][0], infoArr[1][1],
-                infoArr[2][0], infoArr[2][1],
-                infoArr[3][0], infoArr[3][1],
-                infoArr[4][0], infoArr[4][1],
-                infoArr[5][0], infoArr[5][1],
-                infoArr[6][0], infoArr[6][1],
-                infoArr[7][0], infoArr[7][1],
-                infoArr[8][0], infoArr[8][1],
-                infoArr[9][0], infoArr[9][1],
-                infoArr[10][0], infoArr[10][1],
-                infoArr[11][0], infoArr[11][1],
-                infoArr[12][0], infoArr[12][1],
-                infoArr[13][0], infoArr[13][1],
-                infoArr[14][0], infoArr[14][1],
-                infoArr[15][0], infoArr[15][1],
-                infoArr[16][0], infoArr[16][1],
-                infoArr[17][0], infoArr[17][1],
-                infoArr[18][0], infoArr[18][1],
-                infoArr[19][0], infoArr[19][1],
-                infoArr[20][0], infoArr[20][1],
-                infoArr[21][0], infoArr[21][1],
-                infoArr[22][0], infoArr[22][1],
-                infoArr[23][0], infoArr[23][1],
-                ], (err, rows) => {
-                    if (err) {
-                        return reject(err);
-                    }
-                    console.log("Insert end data success");
-                    return resolve(rows);
-                })
-            })
+            return dbOperations.recordSnapshot(fetchUser, infoArr);
         })
         .then(rows => {
             console.log("Sending success response");
@@ -294,9 +86,7 @@ app.get("/users/add", [auth, admin], (req, res) => {
 
 app.get("/users/delete", [auth, admin], (req, res) => {
     var fetchUser = req.query.username;
-    var date = new Date();
-    var month = date.getMonth() + 1;
-    var year = date.getFullYear();
+    var [monthStart, nextMonthStart] = dbOperations.currentMonthBounds();
     console.log("Deleting user", fetchUser);
 
     if (fetchUser === undefined) {
@@ -315,33 +105,19 @@ app.get("/users/delete", [auth, admin], (req, res) => {
     })
     .then(success => {
         var query = new Promise((resolve, reject) => {
-            db.all(`DELETE FROM startdata WHERE (
-                username = ? AND 
-                startMonth = ? AND
-                startYear = ?);`,
-            [fetchUser, month, year], (err, rows) => {
+            db.all(`DELETE FROM snapshotdata WHERE (
+                username = ? AND
+                capturedAt >= ? AND
+                capturedAt < ?);`,
+            [fetchUser, monthStart, nextMonthStart], (err, rows) => {
                 if (err) {
-                    console.log("User startdata delete error");
+                    console.log("User snapshotdata delete error");
                     return reject(err);
                 };
                 return resolve(fetchUser)
             });
-        })     
-    })
-    .then(success => {
-        var query = new Promise((resolve, reject) => {
-            db.all(`DELETE FROM enddata WHERE (
-                username = ? AND 
-                endMonth = ? AND
-                endYear = ?);`,
-            [fetchUser, month, year], (err, rows) => {
-                if (err) {
-                    console.log("User enddata delete error");
-                    return reject(err);
-                };
-                return resolve(fetchUser)
-            });
-        })     
+        })
+        return query;
     })
     .then(rows => {
         console.log("sending response");
@@ -374,16 +150,24 @@ app.get("/users", (req, res) => {
     dbOperations.getMainFeed(res);
 })
 
-const updateEndData = async(users) => {
-    var date = new Date();
-    var month = date.getMonth() + 1;
-    var year = date.getFullYear();
-
+// Shared by both crons below (the 30-min "end" refresh and the
+// start-of-month capture): fetches each user's current hiscores and
+// records one snapshotdata row via dbOperations.recordSnapshot, instead
+// of each cron running its own table-specific UPDATE/INSERT SQL.
+//
+// On a Jagex 404, disables the user — previously only the start-of-month
+// path did this and the 30-min cron merely logged the error; this is a
+// deliberate behavior change so both crons disable a user consistently
+// once their username is no longer found on the hiscores.
+const captureSnapshot = async (users) => {
     for (let i = 0; i < users.length; i++) {
-        var username = users[i].username;    
+        var username = users[i].username;
+
         await fetch(`https://secure.runescape.com/m=hiscore_oldschool/index_lite.ws?player=${username}`, {method: 'GET', headers: {}})
         .then(res => {
             if (!res.ok) {
+                console.log("Username not found in jagex API, disabling user", username);
+                dbOperations.disableUser(0, username);
                 throw new Error("Username not found in jagex API");
             }
             return res.text()
@@ -396,105 +180,14 @@ const updateEndData = async(users) => {
                 var row = rows[i].split(",");
                 infoArr.push([row[1], row[2]]);
             }
-            console.log(username, infoArr[0][0]);
-
-            var update_enddata = new Promise((resolve, reject) => {
-                db.all(`UPDATE enddata SET 
-                    overallLvl = ?,
-                    overallExp = ?,
-                    attackLvl = ?,
-                    attackExp = ?,
-                    defenceLvl = ?,
-                    defenceExp = ?,
-                    strengthLvl = ?,
-                    strengthExp = ?,
-                    hitpointsLvl = ?,
-                    hitpointsExp = ?,
-                    rangedLvl = ?,
-                    rangedExp = ?,
-                    prayerLvl = ?,
-                    prayerExp = ?,
-                    magicLvl = ?,
-                    magicExp = ?,
-                    cookingLvl = ?,
-                    cookingExp = ?,
-                    woodcuttingLvl = ?,
-                    woodcuttingExp = ?,
-                    fletchingLvl = ?,
-                    fletchingExp = ?,
-                    fishingLvl = ?,
-                    fishingExp = ?,
-                    firemakingLvl = ?,
-                    firemakingExp = ?,
-                    craftingLvl = ?,
-                    craftingExp = ?,
-                    smithingLvl = ?,
-                    smithingExp = ?,
-                    miningLvl = ?,
-                    miningExp = ?,
-                    herbloreLvl = ?,
-                    herbloreExp = ?,
-                    agilityLvl = ?,
-                    agilityExp = ?,
-                    thievingLvl = ?,
-                    thievingExp = ?,
-                    slayerLvl = ?,
-                    slayerExp = ?,
-                    farmingLvl = ?,
-                    farmingExp = ?,
-                    runecraftingLvl = ?,
-                    runecraftingExp = ?,
-                    hunterLvl = ?,
-                    hunterExp = ?,
-                    constructionLvl = ?,
-                    constructionExp = ?
-                    WHERE (
-                    username = ? AND
-                    endMonth = ? AND
-                    endYear = ? 
-                    );`,
-                [
-                infoArr[0][0], infoArr[0][1],
-                infoArr[1][0], infoArr[1][1],
-                infoArr[2][0], infoArr[2][1],
-                infoArr[3][0], infoArr[3][1],
-                infoArr[4][0], infoArr[4][1],
-                infoArr[5][0], infoArr[5][1],
-                infoArr[6][0], infoArr[6][1],
-                infoArr[7][0], infoArr[7][1],
-                infoArr[8][0], infoArr[8][1],
-                infoArr[9][0], infoArr[9][1],
-                infoArr[10][0], infoArr[10][1],
-                infoArr[11][0], infoArr[11][1],
-                infoArr[12][0], infoArr[12][1],
-                infoArr[13][0], infoArr[13][1],
-                infoArr[14][0], infoArr[14][1],
-                infoArr[15][0], infoArr[15][1],
-                infoArr[16][0], infoArr[16][1],
-                infoArr[17][0], infoArr[17][1],
-                infoArr[18][0], infoArr[18][1],
-                infoArr[19][0], infoArr[19][1],
-                infoArr[20][0], infoArr[20][1],
-                infoArr[21][0], infoArr[21][1],
-                infoArr[22][0], infoArr[22][1],
-                infoArr[23][0], infoArr[23][1],
-                username,
-                month,
-                year
-                ], (err, rows) => {
-                    if (err) {
-                        return reject(err);
-                    }
-                    console.log("Update end data success");
-                    return resolve(rows);
-                })
-            })
+            console.log("Recording snapshot for", username);
+            return dbOperations.recordSnapshot(username, infoArr);
         })
         .catch(err => console.log(err.message));
     };
 }
 
-/* 
+/*
  Update database every 30 minutes
  */
 cron.schedule('3,33 * * * *', () => {
@@ -509,248 +202,12 @@ cron.schedule('3,33 * * * *', () => {
         });
     })
     .then(users=> {
-        updateEndData(users);
+        captureSnapshot(users);
     })
     .catch(err => console.log(err.message));
 });
 
-const insertStartMonthData = async(users) => {
-    var date = new Date();
-    var day = date.getDate();
-    var month = date.getMonth() + 1;
-    var year = date.getFullYear();
-
-    for (let i = 0; i < users.length; i++) {
-        var username = users[i].username;
-        var primaryKey = [username, day, month, year].join("_");
-        var infoArr = [];   
-
-        await fetch(`https://secure.runescape.com/m=hiscore_oldschool/index_lite.ws?player=${username}`, {method: 'GET', headers: {}})
-        .then(res => {
-            if (!res.ok) {
-                console.log("Username not found in jagex API, disabling user", primaryKey);
-                dbOperations.disableUser(0, username);
-                throw new Error("Username not found in jagex API");
-            }
-            return res.text()
-        })
-        .then(res => {
-            var rows = res.split("\n");
-
-            for (let i = 0; i < 25; i++) {
-                var row = rows[i].split(",");
-                infoArr.push([row[1], row[2]]);
-            }
-            console.log("Inserting data to startdata table", primaryKey);
-            var insert_startdata = new Promise((resolve, reject) => {
-                db.all(`INSERT INTO startdata (
-                    id,
-                    username,
-                    startDay,
-                    startMonth,
-                    startYear,
-                    overallLvl,
-                    overallExp,
-                    attackLvl,
-                    attackExp,
-                    defenceLvl,
-                    defenceExp,
-                    strengthLvl,
-                    strengthExp,
-                    hitpointsLvl,
-                    hitpointsExp,
-                    rangedLvl,
-                    rangedExp,
-                    prayerLvl,
-                    prayerExp,
-                    magicLvl,
-                    magicExp,
-                    cookingLvl,
-                    cookingExp,
-                    woodcuttingLvl,
-                    woodcuttingExp,
-                    fletchingLvl,
-                    fletchingExp,
-                    fishingLvl,
-                    fishingExp,
-                    firemakingLvl,
-                    firemakingExp,
-                    craftingLvl,
-                    craftingExp,
-                    smithingLvl,
-                    smithingExp,
-                    miningLvl,
-                    miningExp,
-                    herbloreLvl,
-                    herbloreExp,
-                    agilityLvl,
-                    agilityExp,
-                    thievingLvl,
-                    thievingExp,
-                    slayerLvl,
-                    slayerExp,
-                    farmingLvl,
-                    farmingExp,
-                    runecraftingLvl,
-                    runecraftingExp,
-                    hunterLvl,
-                    hunterExp,
-                    constructionLvl,
-                    constructionExp
-                    ) VALUES (
-                    ?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?
-                    );`,
-                    [primaryKey,
-                    username,
-                    day,
-                    month,
-                    year,
-                    infoArr[0][0], infoArr[0][1],
-                    infoArr[1][0], infoArr[1][1],
-                    infoArr[2][0], infoArr[2][1],
-                    infoArr[3][0], infoArr[3][1],
-                    infoArr[4][0], infoArr[4][1],
-                    infoArr[5][0], infoArr[5][1],
-                    infoArr[6][0], infoArr[6][1],
-                    infoArr[7][0], infoArr[7][1],
-                    infoArr[8][0], infoArr[8][1],
-                    infoArr[9][0], infoArr[9][1],
-                    infoArr[10][0], infoArr[10][1],
-                    infoArr[11][0], infoArr[11][1],
-                    infoArr[12][0], infoArr[12][1],
-                    infoArr[13][0], infoArr[13][1],
-                    infoArr[14][0], infoArr[14][1],
-                    infoArr[15][0], infoArr[15][1],
-                    infoArr[16][0], infoArr[16][1],
-                    infoArr[17][0], infoArr[17][1],
-                    infoArr[18][0], infoArr[18][1],
-                    infoArr[19][0], infoArr[19][1],
-                    infoArr[20][0], infoArr[20][1],
-                    infoArr[21][0], infoArr[21][1],
-                    infoArr[22][0], infoArr[22][1],
-                    infoArr[23][0], infoArr[23][1],
-                    ], (err, rows) => {
-                    if (err) {
-                        return reject(err);
-                    }
-                    console.log("Insert start data success");
-                    return resolve(rows);
-                })
-            })
-        })
-        .then(body => {
-            console.log("Inserting data to enddata table", primaryKey);
-            var insert_enddata = new Promise((resolve, reject) => {
-                db.all(`INSERT INTO enddata (
-                    id,
-                    username,
-                    endDay,
-                    endMonth,
-                    endYear,
-                    overallLvl,
-                    overallExp,
-                    attackLvl,
-                    attackExp,
-                    defenceLvl,
-                    defenceExp,
-                    strengthLvl,
-                    strengthExp,
-                    hitpointsLvl,
-                    hitpointsExp,
-                    rangedLvl,
-                    rangedExp,
-                    prayerLvl,
-                    prayerExp,
-                    magicLvl,
-                    magicExp,
-                    cookingLvl,
-                    cookingExp,
-                    woodcuttingLvl,
-                    woodcuttingExp,
-                    fletchingLvl,
-                    fletchingExp,
-                    fishingLvl,
-                    fishingExp,
-                    firemakingLvl,
-                    firemakingExp,
-                    craftingLvl,
-                    craftingExp,
-                    smithingLvl,
-                    smithingExp,
-                    miningLvl,
-                    miningExp,
-                    herbloreLvl,
-                    herbloreExp,
-                    agilityLvl,
-                    agilityExp,
-                    thievingLvl,
-                    thievingExp,
-                    slayerLvl,
-                    slayerExp,
-                    farmingLvl,
-                    farmingExp,
-                    runecraftingLvl,
-                    runecraftingExp,
-                    hunterLvl,
-                    hunterExp,
-                    constructionLvl,
-                    constructionExp
-                    ) VALUES (
-                    ?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?,?,?,?,?,?,?,?,
-                    ?,?,?
-                    );`,
-                    [primaryKey,
-                    username,
-                    day,
-                    month,
-                    year,
-                    infoArr[0][0], infoArr[0][1],
-                    infoArr[1][0], infoArr[1][1],
-                    infoArr[2][0], infoArr[2][1],
-                    infoArr[3][0], infoArr[3][1],
-                    infoArr[4][0], infoArr[4][1],
-                    infoArr[5][0], infoArr[5][1],
-                    infoArr[6][0], infoArr[6][1],
-                    infoArr[7][0], infoArr[7][1],
-                    infoArr[8][0], infoArr[8][1],
-                    infoArr[9][0], infoArr[9][1],
-                    infoArr[10][0], infoArr[10][1],
-                    infoArr[11][0], infoArr[11][1],
-                    infoArr[12][0], infoArr[12][1],
-                    infoArr[13][0], infoArr[13][1],
-                    infoArr[14][0], infoArr[14][1],
-                    infoArr[15][0], infoArr[15][1],
-                    infoArr[16][0], infoArr[16][1],
-                    infoArr[17][0], infoArr[17][1],
-                    infoArr[18][0], infoArr[18][1],
-                    infoArr[19][0], infoArr[19][1],
-                    infoArr[20][0], infoArr[20][1],
-                    infoArr[21][0], infoArr[21][1],
-                    infoArr[22][0], infoArr[22][1],
-                    infoArr[23][0], infoArr[23][1],
-                    ], (err, rows) => {
-                    if (err) {
-                        return reject(err);
-                    }
-                    console.log("Insert end data success");
-                    return resolve(rows);
-                })
-            })
-        })
-        .catch(err => console.log(err.message));
-    };
-}
-
-/* 
+/*
  Update database at the start of the month
  */
 cron.schedule('0 0 1 * *', () => {
@@ -765,7 +222,7 @@ cron.schedule('0 0 1 * *', () => {
         });
     })
     .then(users=> {
-        insertStartMonthData(users);
+        captureSnapshot(users);
     })
     .catch(err => console.log(err.message));
 });

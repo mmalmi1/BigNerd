@@ -41,7 +41,7 @@ test('requiring dbConn.js from a fresh-clone cwd (no sqlite3/ subdir) creates th
         assert.strictEqual(parsed.ok, true, `expected schema to be created: ${JSON.stringify(parsed)}`)
         // sqlite_sequence is SQLite's own internal bookkeeping table, created
         // automatically as a side effect of _migrations' AUTOINCREMENT column.
-        assert.deepStrictEqual(parsed.tables, ['_migrations', 'admins', 'enddata', 'sqlite_sequence', 'startdata', 'users'])
+        assert.deepStrictEqual(parsed.tables, ['_migrations', 'admins', 'snapshotdata', 'sqlite_sequence', 'users'])
 
         assert.strictEqual(fs.existsSync(path.join(scratchDir, 'sqlite3')), true)
         assert.strictEqual(fs.existsSync(path.join(scratchDir, 'sqlite3', 'sqlite3.db')), true)

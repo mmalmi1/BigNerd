@@ -1,9 +1,9 @@
 'use strict'
 
 // Run as a standalone child process (spawned with its cwd set to a scratch
-// directory that has no `sqlite3/` subdirectory yet) by test/dbOperations.test.js.
+// directory that has no `sqlite3/` subdirectory yet) by test/db.test.js.
 //
-// Requiring src/dbConn.js and src/dbOperations.js here -- rather than in the
+// Requiring src/dbConn.js and src/db/users.js here -- rather than in the
 // test process -- is what lets their real, cwd-relative sqlite3/sqlite3.db
 // file and unawaited runMigrations(db) call run against an isolated scratch
 // db instead of the real one, the same trick test/fixtures/dbconn-fresh-clone-check.js
@@ -11,11 +11,10 @@
 //
 // argv[2] is a JSON-encoded seed spec: { users: [{username, active}],
 // snapshots: [{username, capturedAt, attackLvl}] }. Rows are inserted in
-// array order -- dbOperations.test.js deliberately orders `snapshots`
-// neither by username nor by capturedAt, to exercise getMainFeed's grouping
-// rather than any incidental row order. Reports one line of JSON on stdout:
-// the getMainFeed response's status code and parsed body, or a failure
-// reason.
+// array order -- db.test.js deliberately orders `snapshots` neither by
+// username nor by capturedAt, to exercise getMainFeed's grouping rather than
+// any incidental row order. Reports one line of JSON on stdout: the
+// getMainFeed() resolution or rejection.
 
 const path = require('path')
 
@@ -23,12 +22,12 @@ const seed = JSON.parse(process.argv[2])
 
 // Both requires resolve (via Node's module cache, keyed by absolute path)
 // to the exact same dbConn.js module -- and therefore the exact same open
-// `db` connection -- that dbOperations.js uses internally, so seeding here
-// and querying via dbOperations.getMainFeed below share one connection with
-// no risk of a second writer racing it.
+// `db` connection -- that src/db/users.js uses internally, so seeding here
+// and querying via usersDb.getMainFeed below share one connection with no
+// risk of a second writer racing it.
 const dbConn = require(path.join(__dirname, '..', '..', 'src', 'dbConn.js'))
 const db = dbConn.db
-const dbOperations = require(path.join(__dirname, '..', '..', 'src', 'dbOperations.js'))
+const usersDb = require(path.join(__dirname, '..', '..', 'src', 'db', 'users.js'))
 
 function report(obj, code) {
     console.log(JSON.stringify(obj))
@@ -75,24 +74,9 @@ async function main() {
         ])
     }
 
-    const result = await new Promise((resolve, reject) => {
-        const fakeRes = {
-            status(code) {
-                this._code = code
-                return this
-            },
-            send(body) {
-                resolve({ code: this._code, body })
-            },
-        }
-        try {
-            dbOperations.getMainFeed(fakeRes)
-        } catch (err) {
-            reject(err)
-        }
-    })
+    const resDict = await usersDb.getMainFeed()
 
-    report({ ok: true, code: result.code, body: JSON.parse(result.body) }, 0)
+    report({ ok: true, body: resDict }, 0)
 }
 
 main().catch((err) => report({ ok: false, reason: err.message }, 1))

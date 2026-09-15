@@ -1,9 +1,10 @@
 const express = require("express")
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 const bcrypt = require("bcrypt")
 const cron = require('node-cron');
 const jwt = require("jsonwebtoken");
-const dbOperations = require("./src/dbOperations.js");
+const usersDb = require("./src/db/users.js");
+const snapshots = require("./src/db/snapshots.js");
+const hiscores = require("./src/hiscores.js");
 
 require('dotenv').config()
 console.log(`${process.env.JWTPRIVATEKEY}`);
@@ -20,59 +21,22 @@ const db = require("./src/dbConn.js").db;
 app.get("/users/add", [auth, admin], (req, res) => {
     var fetchUser = req.query.username;
     var stats = null;
-    var infoArr = [];
 
     if (fetchUser === undefined) {
         res.status(404).send("Undefined user");
         return;
     }
-    fetch(`https://secure.runescape.com/m=hiscore_oldschool/index_lite.ws?player=${fetchUser}`, {method: 'GET', headers: {}})
-        .then(res => {
-            if (!res.ok) {
-                throw new Error("Username not found in jagex API");
-            }
-            return res.text()
-        })
+    hiscores.fetchHiscore(fetchUser)
         .then(body => {
-            console.log("Checking if username already is in db")
-            stats = body; 
-            var query = new Promise((resolve, reject) => {
-                db.all(`SELECT * FROM users;`, [], (err, rows) => {
-                    if (err) {
-                        return reject(err);
-                    };
-                    if (rows.some(a => a.username === fetchUser)) {
-                        return reject(new Error("Username already found"));
-                    };
-                    return resolve(rows);
-                })
-            })
-            return query;
+            stats = body;
+            console.log("Inserting user", fetchUser);
+            return usersDb.addUser(fetchUser, 1);
         })
         .then(resolved => {
-            console.log("Inserting user", fetchUser);
-            var insert = new Promise((resolve, reject) => {
-                db.all(`INSERT INTO users (username, active) VALUES (?, ?);`,
-                [fetchUser, 1], (err, rows) => {
-                    if (err) {
-                        return reject(err);
-                    }
-                    console.log("Insert new username success");
-                    return resolve(rows)
-                })
-            })
-            return resolved;
-        })
-        .then(body => {
             console.log("Recording snapshot for", fetchUser);
-            var rows = stats.split("\n");
+            var infoArr = hiscores.parseHiscoreRows(stats);
 
-            for (let i = 0; i < 25; i++) {
-                var row = rows[i].split(",");
-                infoArr.push([row[1], row[2]]);
-            }
-
-            return dbOperations.recordSnapshot(fetchUser, infoArr);
+            return snapshots.recordSnapshot(fetchUser, infoArr);
         })
         .then(rows => {
             console.log("Sending success response");
@@ -81,43 +45,21 @@ app.get("/users/add", [auth, admin], (req, res) => {
         .catch(err => {
             console.log(err.message);
             res.status(404).send(err.message);
-        }); 
+        });
 })
 
 app.get("/users/delete", [auth, admin], (req, res) => {
     var fetchUser = req.query.username;
-    var [monthStart, nextMonthStart] = dbOperations.currentMonthBounds();
+    var [monthStart, nextMonthStart] = snapshots.currentMonthBounds();
     console.log("Deleting user", fetchUser);
 
     if (fetchUser === undefined) {
         res.status(404).send("Undefined user");
         return;
     }
-    var query = new Promise((resolve, reject) => {
-        db.all(`DELETE FROM users WHERE username = ?;`,
-        [fetchUser], (err, rows) => {
-            if (err) {
-                console.log("User delete error");
-                return reject(new Error("User delete error"));
-            };
-            return resolve(fetchUser)
-        });
-    })
+    usersDb.deleteUser(fetchUser)
     .then(success => {
-        var query = new Promise((resolve, reject) => {
-            db.all(`DELETE FROM snapshotdata WHERE (
-                username = ? AND
-                capturedAt >= ? AND
-                capturedAt < ?);`,
-            [fetchUser, monthStart, nextMonthStart], (err, rows) => {
-                if (err) {
-                    console.log("User snapshotdata delete error");
-                    return reject(err);
-                };
-                return resolve(fetchUser)
-            });
-        })
-        return query;
+        return snapshots.deleteSnapshotsForUserInRange(fetchUser, monthStart, nextMonthStart);
     })
     .then(rows => {
         console.log("sending response");
@@ -137,22 +79,28 @@ app.get("/users/update", [auth, admin], (req, res) => {
         res.status(404).send("Undefined user or status");
         return;
     }
-    dbOperations.disableUser(active, fetchUser, res);
+    usersDb.disableUser(active, fetchUser)
+        .then(() => res.status(200).send('200'))
+        .catch(err => res.status(403).send(err.message));
 });
 
 // Get all users
 app.get("/allusers", [auth, admin], (req, res) => {
-    dbOperations.getAllUsers(res);
+    usersDb.getAllUsers()
+        .then(result => res.status(200).send(JSON.stringify(result)))
+        .catch(err => res.status(404).send(err.message));
 })
 
 // Get main feed
 app.get("/users", (req, res) => {
-    dbOperations.getMainFeed(res);
+    usersDb.getMainFeed()
+        .then(resDict => res.status(200).send(JSON.stringify(resDict)))
+        .catch(err => res.status(404).send(err.message));
 })
 
 // Shared by both crons below (the 30-min "end" refresh and the
 // start-of-month capture): fetches each user's current hiscores and
-// records one snapshotdata row via dbOperations.recordSnapshot, instead
+// records one snapshotdata row via snapshots.recordSnapshot, instead
 // of each cron running its own table-specific UPDATE/INSERT SQL.
 //
 // On a Jagex 404, disables the user — previously only the start-of-month
@@ -163,27 +111,19 @@ const captureSnapshot = async (users) => {
     for (let i = 0; i < users.length; i++) {
         var username = users[i].username;
 
-        await fetch(`https://secure.runescape.com/m=hiscore_oldschool/index_lite.ws?player=${username}`, {method: 'GET', headers: {}})
-        .then(res => {
-            if (!res.ok) {
-                console.log("Username not found in jagex API, disabling user", username);
-                dbOperations.disableUser(0, username);
-                throw new Error("Username not found in jagex API");
-            }
-            return res.text()
-        })
-        .then(res => {
-            var rows = res.split("\n");
-            var infoArr = [];
-
-            for (let i = 0; i < 25; i++) {
-                var row = rows[i].split(",");
-                infoArr.push([row[1], row[2]]);
-            }
+        await hiscores.fetchHiscore(username)
+        .then(text => {
+            var infoArr = hiscores.parseHiscoreRows(text);
             console.log("Recording snapshot for", username);
-            return dbOperations.recordSnapshot(username, infoArr);
+            return snapshots.recordSnapshot(username, infoArr);
         })
-        .catch(err => console.log(err.message));
+        .catch(err => {
+            if (err.message === "Username not found in jagex API") {
+                console.log("Username not found in jagex API, disabling user", username);
+                usersDb.disableUser(0, username).catch(err => console.log(err.message));
+            }
+            console.log(err.message);
+        });
     };
 }
 

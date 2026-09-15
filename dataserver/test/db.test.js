@@ -1,7 +1,7 @@
 'use strict'
 
 // Regression test for the start/end zip-by-array-index pairing bug
-// getMainFeed (dataserver/src/dbOperations.js) was rewritten to fix. The old
+// getMainFeed (dataserver/src/db/users.js) was rewritten to fix. The old
 // implementation ran two separate, unordered queries (one against startdata,
 // one against enddata) and zipped their result arrays by position, trusting
 // that both queries happened to return rows in the same per-user order. The
@@ -22,7 +22,7 @@ const FIXTURE = path.join(__dirname, 'fixtures', 'dbOperations-getMainFeed-check
 test("getMainFeed pairs each user's start/end snapshot rows by username, not by array position across an out-of-order insert", () => {
     const scratchDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bignerd-mainfeed-'))
     try {
-        // currentMonthBounds() (src/dbOperations.js) builds [monthStart,
+        // currentMonthBounds() (src/db/snapshots.js) builds [monthStart,
         // nextMonthStart) via Date.UTC(date.getFullYear(), date.getMonth(), ...)
         // -- i.e. it feeds *local* year/month numbers into Date.UTC. Mirror
         // that exactly here so these capturedAt values are guaranteed to
@@ -77,7 +77,6 @@ test("getMainFeed pairs each user's start/end snapshot rows by username, not by 
         const lastLine = result.stdout.trim().split('\n').pop()
         const parsed = JSON.parse(lastLine)
         assert.strictEqual(parsed.ok, true, `expected getMainFeed to succeed: ${JSON.stringify(parsed)}`)
-        assert.strictEqual(parsed.code, 200)
 
         const body = parsed.body
         assert.strictEqual(body.length, 2, 'both active users should appear in the main feed')

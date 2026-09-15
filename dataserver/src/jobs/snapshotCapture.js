@@ -1,7 +1,7 @@
 const hiscores = require("../hiscores.js");
 const usersDb = require("../db/users.js");
 const snapshots = require("../db/snapshots.js");
-const db = require("../dbConn.js").db;
+const { db, ready } = require("../dbConn.js");
 const cron = require('node-cron');
 
 // Shared by both crons below (the 30-min "end" refresh and the
@@ -75,4 +75,18 @@ function scheduleSnapshotCronJobs() {
     });
 }
 
-module.exports = { runCaptureForAllUsers, scheduleSnapshotCronJobs }
+// Run once on server boot -- same capture logic the 30-minute cron uses,
+// so a restart doesn't wait up to 30 minutes for fresh data. Awaits
+// `ready` first so the query below can't race the migrations that create
+// the `users` table on a fresh clone.
+const runStartupCapture = async () => {
+    await ready;
+    console.log('Running startup snapshot capture');
+    const users = await new Promise((resolve, reject) => {
+        db.all(`SELECT * FROM users;`, [], (err, rows) => err ? reject(err) : resolve(rows));
+    });
+    await runCaptureForAllUsers(users);
+    console.log('Startup snapshot capture complete');
+}
+
+module.exports = { runCaptureForAllUsers, scheduleSnapshotCronJobs, runStartupCapture }

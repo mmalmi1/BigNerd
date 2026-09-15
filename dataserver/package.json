@@ -4,7 +4,7 @@
   "description": "",
   "main": "dataserver.js",
   "scripts": {
-    "test": "node --test test/migrate.test.js test/dbConn.test.js test/db.test.js test/hiscores.test.js test/users.test.js test/routers-structural.test.js",
+    "test": "node --test --test-concurrency=1 test/migrate.test.js test/dbConn.test.js test/db.test.js test/hiscores.test.js test/users.test.js test/routers-structural.test.js test/snapshotCapture.test.js",
     "start": "node dataserver",
     "dev": "nodemon dataserver"
   },

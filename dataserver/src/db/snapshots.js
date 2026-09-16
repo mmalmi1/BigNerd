@@ -1,0 +1,95 @@
+const db = require("../dbConn.js").db;
+
+// The 48 skill Lvl/Exp columns shared by snapshotdata, in the same order
+// as the old startdata/enddata tables (overall first, then the 23
+// remaining skills). Kept as one list so the column order isn't retyped
+// by hand at every call site that builds a snapshotdata row.
+const SKILL_COLUMNS = [
+    "overallLvl", "overallExp",
+    "attackLvl", "attackExp",
+    "defenceLvl", "defenceExp",
+    "strengthLvl", "strengthExp",
+    "hitpointsLvl", "hitpointsExp",
+    "rangedLvl", "rangedExp",
+    "prayerLvl", "prayerExp",
+    "magicLvl", "magicExp",
+    "cookingLvl", "cookingExp",
+    "woodcuttingLvl", "woodcuttingExp",
+    "fletchingLvl", "fletchingExp",
+    "fishingLvl", "fishingExp",
+    "firemakingLvl", "firemakingExp",
+    "craftingLvl", "craftingExp",
+    "smithingLvl", "smithingExp",
+    "miningLvl", "miningExp",
+    "herbloreLvl", "herbloreExp",
+    "agilityLvl", "agilityExp",
+    "thievingLvl", "thievingExp",
+    "slayerLvl", "slayerExp",
+    "farmingLvl", "farmingExp",
+    "runecraftingLvl", "runecraftingExp",
+    "hunterLvl", "hunterExp",
+    "constructionLvl", "constructionExp",
+];
+exports.SKILL_COLUMNS = SKILL_COLUMNS;
+
+// Inserts one append-only snapshot row for `username`. `infoArr` is the
+// existing [[lvl, exp], [lvl, exp], ...] shape already built by the
+// hiscore-fetch code in dataserver.js (24 entries: overall + 23 skills),
+// in the same order as SKILL_COLUMNS.
+//
+// Every capture (the /users/add fetch, the 30-min cron, and the
+// start-of-month cron) now does one plain INSERT here instead of
+// updating a row in place — see vault artifact LLM-BIG-1: the resulting
+// unbounded row growth (~48 new rows/user/day from the 30-min cron, no
+// pruning) is an accepted, decided tradeoff for this ticket, not an
+// oversight.
+function recordSnapshot(username, infoArr, capturedAt = new Date().toISOString()) {
+    return new Promise((resolve, reject) => {
+        var columns = ["username", "capturedAt", ...SKILL_COLUMNS];
+        var placeholders = columns.map(() => "?").join(",");
+        var values = [username, capturedAt];
+        for (let i = 0; i < SKILL_COLUMNS.length / 2; i++) {
+            values.push(infoArr[i][0], infoArr[i][1]);
+        }
+
+        db.run(
+            `INSERT INTO snapshotdata (${columns.map(c => `"${c}"`).join(",")}) VALUES (${placeholders});`,
+            values,
+            function (err) {
+                if (err) {
+                    return reject(err);
+                }
+                return resolve(this);
+            }
+        );
+    });
+}
+exports.recordSnapshot = recordSnapshot;
+
+// Month boundaries as UTC ISO strings — [monthStart, nextMonthStart) —
+// matching the capturedAt format written by recordSnapshot.
+function currentMonthBounds() {
+    var date = new Date();
+    var monthStart = new Date(Date.UTC(date.getFullYear(), date.getMonth(), 1)).toISOString();
+    var nextMonthStart = new Date(Date.UTC(date.getFullYear(), date.getMonth() + 1, 1)).toISOString();
+    return [monthStart, nextMonthStart];
+}
+exports.currentMonthBounds = currentMonthBounds;
+
+// Deletes this month's snapshotdata rows for `username` in [start, end).
+function deleteSnapshotsForUserInRange(username, start, end) {
+    return new Promise((resolve, reject) => {
+        db.all(`DELETE FROM snapshotdata WHERE (
+            username = ? AND
+            capturedAt >= ? AND
+            capturedAt < ?);`,
+        [username, start, end], (err, rows) => {
+            if (err) {
+                console.log("User snapshotdata delete error");
+                return reject(err);
+            };
+            return resolve(username)
+        });
+    });
+}
+exports.deleteSnapshotsForUserInRange = deleteSnapshotsForUserInRange;

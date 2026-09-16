@@ -63,7 +63,7 @@ a:link, a:visited, a:hover, a:active {
   gap: 1.5vh;
 }
 
-.year-select, .month-select {
+.year-select, .month-select, .skill-select {
   font-family: 'runescape';
   font-size: clamp(0.6rem, 2vw, 0.9rem);
   color: beige;

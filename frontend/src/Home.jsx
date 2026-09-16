@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from "react-router-dom"
 import LoginIcon from '@mui/icons-material/Login';
 import CardsView from './CardsView';
+import PlotView from './PlotView';
 
 const MONTH_NAMES = ["January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"];
@@ -97,7 +98,9 @@ function Home() {
             ? (year === null
                 ? <div className="content"><p>Loading…</p></div>
                 : <CardsView year={year} month={month} />)
-            : <div className="content"><p>Plot view coming soon.</p></div>
+            : (year === null
+                ? <div className="content"><p>Loading…</p></div>
+                : <PlotView year={year} month={month} />)
           }
         </div>
       </div >

@@ -7,6 +7,17 @@ const { admin } = require("../../middleware/roles");
 
 const router = express.Router()
 
+function isValidYear(value) {
+    return typeof value === "string" && value !== "" && /^\d+$/.test(value);
+}
+
+function isValidMonth(value) {
+    if (value === "all") return true;
+    if (typeof value !== "string" || value === "" || !/^\d+$/.test(value)) return false;
+    var n = Number(value);
+    return n >= 1 && n <= 12;
+}
+
 router.get("/users/add", [auth, admin], (req, res) => {
     var fetchUser = req.query.username;
     var stats = null;
@@ -82,8 +93,21 @@ router.get("/allusers", [auth, admin], (req, res) => {
 
 // Get main feed
 router.get("/users", (req, res) => {
-    usersDb.getMainFeed()
+    var year = req.query.year;
+    var month = req.query.month;
+    if (!isValidYear(year) || !isValidMonth(month)) {
+        res.status(400).send("year and month query params are required; month must be 1-12 or \"all\"");
+        return;
+    }
+    usersDb.getMainFeed(Number(year), month === "all" ? "all" : Number(month))
         .then(resDict => res.status(200).send(JSON.stringify(resDict)))
+        .catch(err => res.status(404).send(err.message));
+})
+
+// Get the years that have snapshot data for active users
+router.get("/years", (req, res) => {
+    snapshots.getAvailableYears()
+        .then(years => res.status(200).send(JSON.stringify(years)))
         .catch(err => res.status(404).send(err.message));
 })
 

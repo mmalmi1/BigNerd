@@ -1,5 +1,5 @@
 const db = require("../dbConn.js").db;
-const { currentMonthBounds } = require("./snapshots.js");
+const snapshots = require("./snapshots.js");
 
 // Sets `username`'s active flag. Resolves on success; rejects with the
 // lookup/update error (or a "not found" error when the username doesn't
@@ -38,40 +38,12 @@ function sortFunction(a, b) {
 }
 
 // Resolves with the JSON-ready main-feed array: [username, startRow, endRow]
-// triples, sorted by this month's exp gain, descending.
-function getMainFeed() {
-    var [monthStart, nextMonthStart] = currentMonthBounds();
+// triples, sorted by this range's exp gain, descending. `month` is 1-12 for
+// a single month, or "all" for the whole `year`.
+function getMainFeed(year, month) {
+    var [start, end] = snapshots.rangeBounds(year, month);
 
-    return new Promise((resolve, reject) => {
-        db.all(`SELECT * FROM users WHERE active = 1;`, [], (err, rows) => {
-            if (err) {
-                return reject(err);
-            }
-            return resolve(rows);
-        });
-    })
-    .then(users => {
-        var usernames = users.map((u) => u.username);
-        if (usernames.length === 0) {
-            return [];
-        }
-
-        var params = [...usernames, monthStart, nextMonthStart];
-        return new Promise((resolve, reject) => {
-            db.all(`SELECT * FROM snapshotdata WHERE (
-                username IN (${ usernames.map(() => "?").join(",") }) AND
-                capturedAt >= ? AND
-                capturedAt < ?
-            ) ORDER BY username ASC, capturedAt ASC;`,
-            params, (err, rows) => {
-                if (err) {
-                    console.log("Get snapshotdata error\n");
-                    return reject(err);
-                };
-                return resolve(rows);
-            });
-        });
-    })
+    return snapshots.activeUsernameSnapshotsInRange(start, end)
     .then(rows => {
         console.log("Users query success");
 
@@ -90,9 +62,9 @@ function getMainFeed() {
         }
 
         var resDict = [];
-        for (const [username, snapshots] of grouped) {
-            var startRow = snapshots[0];
-            var endRow = snapshots[snapshots.length - 1];
+        for (const [username, userSnapshots] of grouped) {
+            var startRow = userSnapshots[0];
+            var endRow = userSnapshots[userSnapshots.length - 1];
 
             // Home.jsx reads user[1]["startDay"/"startMonth"/"startYear"]
             // — synthesize those onto the derived start row from its

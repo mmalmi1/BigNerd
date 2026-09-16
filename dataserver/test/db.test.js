@@ -60,6 +60,12 @@ test("getMainFeed pairs each user's start/end snapshot rows by username, not by 
                 { username: userB, active: 1 },
             ],
             snapshots,
+            // getMainFeed now takes an explicit (year, month) instead of
+            // always using the current month -- pass the same y/m the
+            // capturedAt values above were built from, so this fixture
+            // still exercises the current-month range.
+            year: y,
+            month: m + 1,
         }
 
         const result = spawnSync(process.execPath, [FIXTURE, JSON.stringify(seed)], {
@@ -99,6 +105,151 @@ test("getMainFeed pairs each user's start/end snapshot rows by username, not by 
                 `${username}'s end row must carry ${username}'s own marker, not another user's`
             )
         }
+    } finally {
+        fs.rmSync(scratchDir, { recursive: true, force: true })
+    }
+})
+
+// USR-BIG-3 item 1: getMainFeed(year, month) generalized rangeBounds/
+// activeUsernameSnapshotsInRange to an explicit, arbitrary (year, month)
+// instead of always the current month. The three tests below exercise that
+// range selection directly -- a single month with data, "all" spanning
+// several months of a year, and a range with no data at all -- using fixed
+// 2024 dates rather than "now", since the range is no longer tied to the
+// current month.
+
+test('getMainFeed sorts a month\'s results by exp gained (end overallExp minus start overallExp) descending', () => {
+    const scratchDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bignerd-mainfeed-sort-'))
+    try {
+        const userHighGain = 'mainfeedSortUserHigh'
+        const userLowGain = 'mainfeedSortUserLow'
+
+        const snapshots = [
+            { username: userLowGain, capturedAt: '2024-05-01T00:00:00.000Z', overallExp: 1000 },
+            { username: userHighGain, capturedAt: '2024-05-01T00:00:00.000Z', overallExp: 1000 },
+            // userHighGain gains 500 exp this month, userLowGain gains only
+            // 100 -- so the sort must put userHighGain first even though it
+            // was inserted second and its rows were seeded out of exp order.
+            { username: userHighGain, capturedAt: '2024-05-20T00:00:00.000Z', overallExp: 1500 },
+            { username: userLowGain, capturedAt: '2024-05-20T00:00:00.000Z', overallExp: 1100 },
+        ]
+
+        const seed = {
+            users: [
+                { username: userHighGain, active: 1 },
+                { username: userLowGain, active: 1 },
+            ],
+            snapshots,
+            year: 2024,
+            month: 5,
+        }
+
+        const result = spawnSync(process.execPath, [FIXTURE, JSON.stringify(seed)], {
+            cwd: scratchDir,
+            encoding: 'utf8',
+            timeout: 20000,
+        })
+
+        assert.strictEqual(
+            result.status,
+            0,
+            `fixture should exit cleanly; stdout=${result.stdout} stderr=${result.stderr}`
+        )
+
+        const lastLine = result.stdout.trim().split('\n').pop()
+        const parsed = JSON.parse(lastLine)
+        assert.strictEqual(parsed.ok, true, `expected getMainFeed to succeed: ${JSON.stringify(parsed)}`)
+
+        const body = parsed.body
+        assert.strictEqual(body.length, 2, 'both active users should appear in the main feed')
+        assert.strictEqual(body[0][0], userHighGain, 'the bigger exp gain must be sorted first')
+        assert.strictEqual(body[1][0], userLowGain, 'the smaller exp gain must be sorted second')
+    } finally {
+        fs.rmSync(scratchDir, { recursive: true, force: true })
+    }
+})
+
+test('getMainFeed(year, "all") picks up snapshot rows spanning multiple months of that year, not just one', () => {
+    const scratchDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bignerd-mainfeed-all-'))
+    try {
+        const username = 'mainfeedAllYearUser'
+        const marker = 1234
+
+        const snapshots = [
+            // February and November of the same year -- an implementation
+            // that only widened rangeBounds for a single month (or defaulted
+            // "all" to some fixed month) would miss one of these.
+            { username, capturedAt: '2024-02-10T00:00:00.000Z', attackLvl: marker },
+            { username, capturedAt: '2024-11-15T00:00:00.000Z', attackLvl: marker },
+            // Outside the 2024 calendar year entirely -- must not be picked
+            // up by getMainFeed(2024, "all").
+            { username, capturedAt: '2023-12-31T23:59:59.000Z', attackLvl: marker },
+            { username, capturedAt: '2025-01-01T00:00:00.000Z', attackLvl: marker },
+        ]
+
+        const seed = {
+            users: [{ username, active: 1 }],
+            snapshots,
+            year: 2024,
+            month: 'all',
+        }
+
+        const result = spawnSync(process.execPath, [FIXTURE, JSON.stringify(seed)], {
+            cwd: scratchDir,
+            encoding: 'utf8',
+            timeout: 20000,
+        })
+
+        assert.strictEqual(
+            result.status,
+            0,
+            `fixture should exit cleanly; stdout=${result.stdout} stderr=${result.stderr}`
+        )
+
+        const lastLine = result.stdout.trim().split('\n').pop()
+        const parsed = JSON.parse(lastLine)
+        assert.strictEqual(parsed.ok, true, `expected getMainFeed to succeed: ${JSON.stringify(parsed)}`)
+
+        const body = parsed.body
+        assert.strictEqual(body.length, 1, 'the one active user should appear exactly once')
+        const [, startRow, endRow] = body[0]
+        assert.strictEqual(startRow.capturedAt, '2024-02-10T00:00:00.000Z', 'the start row must be the earliest row inside 2024, not the one from 2023')
+        assert.strictEqual(endRow.capturedAt, '2024-11-15T00:00:00.000Z', 'the end row must be the latest row inside 2024, not the one from 2025')
+    } finally {
+        fs.rmSync(scratchDir, { recursive: true, force: true })
+    }
+})
+
+test('getMainFeed returns an empty array, not an error, for a year/month range with zero matching rows', () => {
+    const scratchDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bignerd-mainfeed-empty-'))
+    try {
+        const username = 'mainfeedEmptyRangeUser'
+
+        const seed = {
+            users: [{ username, active: 1 }],
+            // This user has data, but none of it falls in the year/month
+            // queried below.
+            snapshots: [{ username, capturedAt: '2024-05-15T00:00:00.000Z', attackLvl: 1 }],
+            year: 2019,
+            month: 3,
+        }
+
+        const result = spawnSync(process.execPath, [FIXTURE, JSON.stringify(seed)], {
+            cwd: scratchDir,
+            encoding: 'utf8',
+            timeout: 20000,
+        })
+
+        assert.strictEqual(
+            result.status,
+            0,
+            `fixture should exit cleanly; stdout=${result.stdout} stderr=${result.stderr}`
+        )
+
+        const lastLine = result.stdout.trim().split('\n').pop()
+        const parsed = JSON.parse(lastLine)
+        assert.strictEqual(parsed.ok, true, `expected getMainFeed to succeed (resolve, not reject) on an empty range: ${JSON.stringify(parsed)}`)
+        assert.deepStrictEqual(parsed.body, [], 'a range with no matching snapshotdata rows must resolve to an empty array')
     } finally {
         fs.rmSync(scratchDir, { recursive: true, force: true })
     }

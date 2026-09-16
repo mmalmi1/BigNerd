@@ -73,7 +73,7 @@ function structuralFacts() {
     }
 }
 
-test('routes/users.js exports a router with exactly its 5 GET routes, in order, at the expected paths', () => {
+test('routes/users.js exports a router with exactly its 6 GET routes, in order, at the expected paths', () => {
     const parsed = structuralFacts()
     assert.deepStrictEqual(parsed.usersRoutes, [
         { path: '/users/add', methods: ['get'] },
@@ -81,6 +81,7 @@ test('routes/users.js exports a router with exactly its 5 GET routes, in order, 
         { path: '/users/update', methods: ['get'] },
         { path: '/allusers', methods: ['get'] },
         { path: '/users', methods: ['get'] },
+        { path: '/years', methods: ['get'] },
     ])
 })
 

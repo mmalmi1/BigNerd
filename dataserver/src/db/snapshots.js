@@ -76,6 +76,85 @@ function currentMonthBounds() {
 }
 exports.currentMonthBounds = currentMonthBounds;
 
+// Range boundaries as UTC ISO strings — [start, end) — for a given
+// year/month, matching the capturedAt format written by recordSnapshot.
+// `month === "all"` spans the whole `year`; otherwise `month` is 1-12 and
+// the range is just that month. Relies on the same December-rollover trick
+// currentMonthBounds() does: Date.UTC normalizes an overflowing month
+// argument, so passing `month` (1-12) as the end bound's month rolls
+// December into next January for free.
+function rangeBounds(year, month) {
+    if (month === "all") {
+        var start = new Date(Date.UTC(year, 0, 1)).toISOString();
+        var end = new Date(Date.UTC(year + 1, 0, 1)).toISOString();
+        return [start, end];
+    }
+    var start = new Date(Date.UTC(year, month - 1, 1)).toISOString();
+    var end = new Date(Date.UTC(year, month, 1)).toISOString();
+    return [start, end];
+}
+exports.rangeBounds = rangeBounds;
+
+// Resolves with the raw snapshotdata rows, in [start, end), for every
+// currently-active user, ordered by username then capturedAt ascending.
+// No grouping -- callers (getMainFeed today, a future plot-data query
+// tomorrow) shape the rows themselves. Generic (start, end) -> rows
+// signature, not coupled to getMainFeed's [username, startRow, endRow]
+// shape.
+function activeUsernameSnapshotsInRange(start, end) {
+    return new Promise((resolve, reject) => {
+        db.all(`SELECT * FROM users WHERE active = 1;`, [], (err, rows) => {
+            if (err) {
+                return reject(err);
+            }
+            return resolve(rows);
+        });
+    })
+    .then(users => {
+        var usernames = users.map((u) => u.username);
+        if (usernames.length === 0) {
+            return [];
+        }
+
+        var params = [...usernames, start, end];
+        return new Promise((resolve, reject) => {
+            db.all(`SELECT * FROM snapshotdata WHERE (
+                username IN (${ usernames.map(() => "?").join(",") }) AND
+                capturedAt >= ? AND
+                capturedAt < ?
+            ) ORDER BY username ASC, capturedAt ASC;`,
+            params, (err, rows) => {
+                if (err) {
+                    console.log("Get snapshotdata error\n");
+                    return reject(err);
+                };
+                return resolve(rows);
+            });
+        });
+    });
+}
+exports.activeUsernameSnapshotsInRange = activeUsernameSnapshotsInRange;
+
+// Resolves with the sorted list of years (ascending) that have at least one
+// snapshotdata row belonging to a currently-active user.
+function getAvailableYears() {
+    return new Promise((resolve, reject) => {
+        db.all(
+            `SELECT DISTINCT CAST(substr(s.capturedAt, 1, 4) AS INTEGER) AS year
+             FROM snapshotdata s
+             JOIN users u ON u.username = s.username
+             WHERE u.active = 1
+             ORDER BY year ASC;`,
+            [],
+            (err, rows) => {
+                if (err) return reject(err);
+                return resolve(rows.map(r => r.year));
+            }
+        );
+    });
+}
+exports.getAvailableYears = getAvailableYears;
+
 // Deletes this month's snapshotdata rows for `username` in [start, end).
 function deleteSnapshotsForUserInRange(username, start, end) {
     return new Promise((resolve, reject) => {

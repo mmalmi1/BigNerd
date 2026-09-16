@@ -10,11 +10,16 @@
 // uses for dbConn.js alone.
 //
 // argv[2] is a JSON-encoded seed spec: { users: [{username, active}],
-// snapshots: [{username, capturedAt, attackLvl}] }. Rows are inserted in
-// array order -- db.test.js deliberately orders `snapshots` neither by
-// username nor by capturedAt, to exercise getMainFeed's grouping rather than
-// any incidental row order. Reports one line of JSON on stdout: the
-// getMainFeed() resolution or rejection.
+// snapshots: [{username, capturedAt, attackLvl, overallExp}], year, month }.
+// `overallExp` is optional (defaults to null) -- only the sort-order
+// scenario in db.test.js sets it, so getMainFeed's sortFunction (which
+// diffs overallExp between a user's start/end rows) has something real to
+// rank. Rows are inserted in array order -- db.test.js deliberately orders
+// `snapshots` neither by username nor by capturedAt, to exercise
+// getMainFeed's grouping rather than any incidental row order. `year`/
+// `month` are passed straight through to getMainFeed(year, month) (month is
+// 1-12 or "all"). Reports one line of JSON on stdout: the getMainFeed()
+// resolution or rejection.
 
 const path = require('path')
 
@@ -67,14 +72,15 @@ async function main() {
     }
 
     for (const s of seed.snapshots) {
-        await runAsync('INSERT INTO snapshotdata (username, capturedAt, attackLvl) VALUES (?, ?, ?)', [
+        await runAsync('INSERT INTO snapshotdata (username, capturedAt, attackLvl, overallExp) VALUES (?, ?, ?, ?)', [
             s.username,
             s.capturedAt,
-            s.attackLvl,
+            s.attackLvl === undefined ? null : s.attackLvl,
+            s.overallExp === undefined ? null : s.overallExp,
         ])
     }
 
-    const resDict = await usersDb.getMainFeed()
+    const resDict = await usersDb.getMainFeed(seed.year, seed.month)
 
     report({ ok: true, body: resDict }, 0)
 }

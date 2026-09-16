@@ -32,6 +32,12 @@ const SKILL_COLUMNS = [
 ];
 exports.SKILL_COLUMNS = SKILL_COLUMNS;
 
+// The skill keys (SKILL_COLUMNS with the trailing "Lvl"/"Exp" stripped),
+// e.g. "overall", "attack", ... -- the vocabulary a caller picks a skill
+// from, derived from SKILL_COLUMNS so the two never drift apart.
+const SKILL_KEYS = SKILL_COLUMNS.filter(c => c.endsWith("Lvl")).map(c => c.slice(0, -3));
+exports.SKILL_KEYS = SKILL_KEYS;
+
 // Inserts one append-only snapshot row for `username`. `infoArr` is the
 // existing [[lvl, exp], [lvl, exp], ...] shape already built by the
 // hiscore-fetch code in dataserver.js (24 entries: overall + 23 skills),
@@ -154,6 +160,25 @@ function getAvailableYears() {
     });
 }
 exports.getAvailableYears = getAvailableYears;
+
+// Resolves with per-user time-series points for one skill/metric column,
+// in [start, end) for the given year/month range. Rows already arrive
+// ORDER BY username ASC, capturedAt ASC from activeUsernameSnapshotsInRange,
+// so this is a straight group-by pass -- no re-sorting needed.
+function getSkillSeries(year, month, column) {
+    var [start, end] = rangeBounds(year, month);
+    return activeUsernameSnapshotsInRange(start, end).then(rows => {
+        var byUser = new Map();
+        for (const row of rows) {
+            if (!byUser.has(row.username)) {
+                byUser.set(row.username, { username: row.username, points: [] });
+            }
+            byUser.get(row.username).points.push({ capturedAt: row.capturedAt, value: row[column] });
+        }
+        return Array.from(byUser.values());
+    });
+}
+exports.getSkillSeries = getSkillSeries;
 
 // Deletes this month's snapshotdata rows for `username` in [start, end).
 function deleteSnapshotsForUserInRange(username, start, end) {

@@ -111,4 +111,32 @@ router.get("/years", (req, res) => {
         .catch(err => res.status(404).send(err.message));
 })
 
+// Get per-user time-series points for one skill/metric over a year/month range
+router.get("/users/plot", (req, res) => {
+    var year = req.query.year;
+    var month = req.query.month;
+    var skill = req.query.skill;
+    var metric = req.query.metric;
+    if (!isValidYear(year) || !isValidMonth(month)) {
+        res.status(400).send("year and month query params are required; month must be 1-12 or \"all\"");
+        return;
+    }
+    if (typeof skill !== "string" || !snapshots.SKILL_KEYS.includes(skill)) {
+        res.status(400).send("skill query param must be one of: " + snapshots.SKILL_KEYS.join(", "));
+        return;
+    }
+    if (metric !== "lvl" && metric !== "exp") {
+        res.status(400).send("metric query param must be \"lvl\" or \"exp\"");
+        return;
+    }
+    var column = `${skill}${metric === "lvl" ? "Lvl" : "Exp"}`;
+    if (!snapshots.SKILL_COLUMNS.includes(column)) {
+        res.status(400).send("invalid skill/metric combination");
+        return;
+    }
+    snapshots.getSkillSeries(Number(year), month === "all" ? "all" : Number(month), column)
+        .then(series => res.status(200).send(JSON.stringify({ column, series })))
+        .catch(err => res.status(404).send(err.message));
+});
+
 module.exports = router

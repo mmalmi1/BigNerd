@@ -13,7 +13,9 @@
 // in test/dbConn.test.js and test/users.test.js.
 //
 // This performs real introspection of the real Express Router internals
-// (`.stack`) produced by requiring the actual modules -- no mocking.
+// (`.stack`) produced by requiring the actual modules -- no mocking, except
+// for the minimal req/res objects used below to invoke the real GET
+// /users/plot handler directly and capture its response status.
 
 function report(obj, code) {
     console.log(JSON.stringify(obj))
@@ -45,6 +47,38 @@ try {
     const jobsExportsOk =
         typeof jobs.runCaptureForAllUsers === 'function' && typeof jobs.scheduleSnapshotCronJobs === 'function'
 
+    // Pull the real handler function for GET /users/plot off Express's
+    // internal route stack (same .stack introspection style as
+    // usersRoutes/authLayerKinds above) and invoke it directly, twice,
+    // against a minimal mock req/res -- no server boot, no supertest. This
+    // proves the allowlist rejections (skill not in SKILL_KEYS; metric not
+    // "lvl"/"exp") are real behaviour of the real handler, not just of the
+    // plan. Both calls use an otherwise-valid year/month so only the
+    // skill/metric check under test can be responsible for the 400.
+    const plotLayer = usersRouter.stack.find((layer) => layer.route && layer.route.path === '/users/plot')
+    const plotHandler = plotLayer.route.stack[plotLayer.route.stack.length - 1].handle
+
+    function mockRes() {
+        return {
+            code: null,
+            body: null,
+            status(c) {
+                this.code = c
+                return this
+            },
+            send(b) {
+                this.body = b
+                return this
+            },
+        }
+    }
+
+    const invalidSkillRes = mockRes()
+    plotHandler({ query: { year: '2024', month: '6', skill: 'notaskill', metric: 'lvl' } }, invalidSkillRes)
+
+    const invalidMetricRes = mockRes()
+    plotHandler({ query: { year: '2024', month: '6', skill: 'attack', metric: 'xp' } }, invalidMetricRes)
+
     // Real invocation of the real scheduleSnapshotCronJobs -- proves it does
     // not throw synchronously (e.g. an invalid cron pattern). The process
     // exits immediately after via report()/process.exit, regardless of the
@@ -56,7 +90,18 @@ try {
         scheduleThrew = err.message
     }
 
-    report({ ok: true, usersRoutes, authLayerKinds, jobsExportsOk, scheduleThrew }, 0)
+    report(
+        {
+            ok: true,
+            usersRoutes,
+            authLayerKinds,
+            jobsExportsOk,
+            scheduleThrew,
+            plotInvalidSkillStatus: invalidSkillRes.code,
+            plotInvalidMetricStatus: invalidMetricRes.code,
+        },
+        0
+    )
 } catch (err) {
     report({ ok: false, error: err.message, stack: err.stack }, 1)
 }

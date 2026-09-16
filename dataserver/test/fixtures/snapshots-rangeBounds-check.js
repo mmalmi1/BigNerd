@@ -13,7 +13,9 @@
 // or touches `db`, since rangeBounds itself never does either.
 //
 // Reports one line of JSON on stdout: rangeBounds's result for a fixed set
-// of (year, month) cases.
+// of (year, month) cases, plus the SKILL_KEYS export (also a pure value,
+// also exported from this same module -- piggybacked onto this fixture
+// rather than spawning a second child process just to read one constant).
 
 const path = require('path')
 
@@ -29,6 +31,7 @@ try {
         midYear: snapshots.rangeBounds(2024, 5),
         decemberRollover: snapshots.rangeBounds(2024, 12),
         all: snapshots.rangeBounds(2024, 'all'),
+        skillKeys: snapshots.SKILL_KEYS,
     }
     report({ ok: true, result }, 0)
 } catch (err) {

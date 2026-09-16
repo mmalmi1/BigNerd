@@ -73,7 +73,7 @@ function structuralFacts() {
     }
 }
 
-test('routes/users.js exports a router with exactly its 6 GET routes, in order, at the expected paths', () => {
+test('routes/users.js exports a router with exactly its 7 GET routes, in order, at the expected paths', () => {
     const parsed = structuralFacts()
     assert.deepStrictEqual(parsed.usersRoutes, [
         { path: '/users/add', methods: ['get'] },
@@ -82,6 +82,7 @@ test('routes/users.js exports a router with exactly its 6 GET routes, in order, 
         { path: '/allusers', methods: ['get'] },
         { path: '/users', methods: ['get'] },
         { path: '/years', methods: ['get'] },
+        { path: '/users/plot', methods: ['get'] },
     ])
 })
 
@@ -109,6 +110,24 @@ test('jobs/snapshotCapture.js exports runCaptureForAllUsers and scheduleSnapshot
         parsed.scheduleThrew,
         null,
         `scheduleSnapshotCronJobs() must not throw: ${parsed.scheduleThrew}`
+    )
+})
+
+test('GET /users/plot rejects an unknown skill with 400, without touching the database', () => {
+    const parsed = structuralFacts()
+    assert.strictEqual(
+        parsed.plotInvalidSkillStatus,
+        400,
+        `expected 400 for skill=notaskill, got ${JSON.stringify(parsed.plotInvalidSkillStatus)}`
+    )
+})
+
+test('GET /users/plot rejects an unknown metric with 400, without touching the database', () => {
+    const parsed = structuralFacts()
+    assert.strictEqual(
+        parsed.plotInvalidMetricStatus,
+        400,
+        `expected 400 for metric=xp, got ${JSON.stringify(parsed.plotInvalidMetricStatus)}`
     )
 })
 

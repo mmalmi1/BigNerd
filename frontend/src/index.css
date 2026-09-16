@@ -51,6 +51,56 @@ a:link, a:visited, a:hover, a:active {
   justify-content: space-between;
 }
 
+.nav-selectors {
+  display: flex;
+  align-items: center;
+  gap: 1vh;
+}
+
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5vh;
+}
+
+.year-select, .month-select {
+  font-family: 'runescape';
+  font-size: clamp(0.6rem, 2vw, 0.9rem);
+  color: beige;
+  background-color: rgb(85, 2, 20);
+  border: 1px solid beige;
+  border-radius: 3px;
+  padding: 0.2vh 0.5vh;
+}
+
+.year-select:disabled {
+  color: gray;
+  border-color: gray;
+  background-color: rgb(60, 1, 14);
+}
+
+.view-toggle {
+  display: flex;
+  gap: 0.5vh;
+}
+
+.view-toggle-btn {
+  font-family: 'runescape';
+  font-size: clamp(0.6rem, 2vw, 0.9rem);
+  color: beige;
+  background-color: rgb(85, 2, 20);
+  border: 1px solid beige;
+  border-radius: 3px;
+  padding: 0.2vh 1vh;
+  cursor: pointer;
+}
+
+.view-toggle-btn--active {
+  color: black;
+  background-color: gold;
+  border: 1px solid gold;
+}
+
 .body {
   margin: 0;
   display: flex;
